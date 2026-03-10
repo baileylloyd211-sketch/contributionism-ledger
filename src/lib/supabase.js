@@ -100,3 +100,4 @@ export async function updateContactStatus(requestId, status) {
     .single()
   return { data, error }
 }
+
