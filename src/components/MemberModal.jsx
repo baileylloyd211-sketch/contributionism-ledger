@@ -56,7 +56,6 @@ export default function MemberModal({ member, onClose }) {
         width: '100%', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto',
         fontFamily: "'DM Mono', monospace",
       }}>
-
         <div style={{ padding: '28px 32px 22px', borderBottom: '1px solid #141414' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div style={{ flex: 1 }}>
@@ -81,7 +80,7 @@ export default function MemberModal({ member, onClose }) {
                 </span>
               </div>
             </div>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#333', cursor: 'pointer', fontSize: 18, padding: 4, lineHeight: 1 }}>✕</button>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#333', cursor: 'pointer', fontSize: 18, padding: 4 }}>✕</button>
           </div>
         </div>
 
@@ -152,10 +151,11 @@ export default function MemberModal({ member, onClose }) {
                   { key: 'collaboration', label: 'PROPOSE COLLABORATION' },
                 ].map(({ key, label }) => (
                   <button key={key} onClick={() => setContactType(key)} style={{
-                    flex: 1, padding: '9px 0', background: contactType === key ? (key === 'service' ? '#0a1a16' : '#1a1506') : 'transparent',
+                    flex: 1, padding: '9px 0',
+                    background: contactType === key ? (key === 'service' ? '#0a1a16' : '#1a1506') : 'transparent',
                     border: `1px solid ${contactType === key ? (key === 'service' ? '#7EB8A440' : '#C4A35A40') : '#1a1a1a'}`,
                     color: contactType === key ? (key === 'service' ? '#7EB8A4' : '#C4A35A') : '#444',
-                    borderRadius: 2, cursor: 'pointer', fontSize: 10, letterSpacing: '0.08em', transition: 'all 0.15s',
+                    borderRadius: 2, cursor: 'pointer', fontSize: 10, letterSpacing: '0.08em',
                   }}>{label}</button>
                 ))}
               </div>
@@ -170,12 +170,15 @@ export default function MemberModal({ member, onClose }) {
                       width: '100%', background: '#111', border: '1px solid #1a1a1a',
                       borderRadius: 2, padding: '10px 12px', color: '#aaa', fontSize: 12,
                       resize: 'vertical', lineHeight: 1.6, marginBottom: 10,
+                      fontFamily: "'DM Mono', monospace",
                     }}
                   />
                   <button onClick={handleContact} disabled={sending || !message.trim()} style={{
                     width: '100%', padding: '11px', background: '#0a1a16',
-                    border: '1px solid #7EB8A440', borderRadius: 2, color: sending ? '#444' : '#7EB8A4',
+                    border: '1px solid #7EB8A440', borderRadius: 2,
+                    color: sending ? '#444' : '#7EB8A4',
                     fontSize: 11, letterSpacing: '0.1em', cursor: 'pointer',
+                    fontFamily: "'DM Mono', monospace",
                   }}>
                     {sending ? 'SENDING...' : user ? 'SEND REQUEST' : 'SIGN IN TO CONTACT'}
                   </button>
@@ -184,7 +187,6 @@ export default function MemberModal({ member, onClose }) {
             </>
           )}
         </div>
-
       </div>
     </div>
   )
