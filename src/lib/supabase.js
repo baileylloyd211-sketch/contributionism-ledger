@@ -39,7 +39,7 @@ export async function getMembers() {
 export async function getMemberById(id) {
   const { data, error } = await supabase
     .from('members')
-    .select('*, transactions(*), skills(*)')
+    .select('*')
     .eq('id', id)
     .single()
   return { data, error }
@@ -82,4 +82,21 @@ export async function verifyTransaction(transactionId, verifierId) {
   return { data, error }
 }
 
-export async function sendContactRequest({ fromId, toId,
+export async function sendContactRequest({ fromId, toId, type, message }) {
+  const { data, error } = await supabase
+    .from('contact_requests')
+    .insert({ from_member_id: fromId, to_member_id: toId, type, message, status: 'pending' })
+    .select()
+    .single()
+  return { data, error }
+}
+
+export async function updateContactStatus(requestId, status) {
+  const { data, error } = await supabase
+    .from('contact_requests')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', requestId)
+    .select()
+    .single()
+  return { data, error }
+}
