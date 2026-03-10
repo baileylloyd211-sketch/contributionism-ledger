@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { TAXONOMY, CONTACT_STATUSES } from '../lib/taxonomy'
 import { sendContactRequest } from '../lib/supabase'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '../hooks/useAuth.jsx'
 import { useNavigate } from 'react-router-dom'
 
 function ScoreBar({ score, max = 4000 }) {
