@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { TAXONOMY, CONTACT_STATUSES, SAMPLE_MEMBERS, CREDIT_SYSTEM } from '../lib/taxonomy'
 import { getMembers } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
-import MemberModal from './MemberModal.jsx'
+import MemberModal from './MemberModal'
 
 const ALL = 'ALL'
 
