@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { TAXONOMY, CONTACT_STATUSES } from '../lib/taxonomy'
 import { sendContactRequest } from '../lib/supabase'
-import { useAuth } from '../hooks/useAuth.jsx'
 import { useNavigate } from 'react-router-dom'
 
 function ScoreBar({ score, max = 4000 }) {
@@ -23,7 +22,7 @@ function StatBox({ label, value, color }) {
 }
 
 export default function MemberModal({ member, onClose }) {
-  const { user } = useAuth()
+  const { user } = null()
   const navigate = useNavigate()
   const [contactType, setContactType] = useState(null)
   const [message, setMessage] = useState('')
