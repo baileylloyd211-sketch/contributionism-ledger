@@ -1,4 +1,4 @@
-// v3
+// v4
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://twdekfysohnzunxirgsl.supabase.co'
@@ -59,4 +59,64 @@ export async function updateContactStatus(requestId, status) {
     .single()
   return { data, error }
 }
- 
+
+// ── Sponsor Code System ─────────────────────────────────────────────────────
+
+function generateCode() {
+  // Format: XXXX-XXXX-XXXX (uppercase alphanumeric, no ambiguous chars)
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const segment = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+  return `${segment()}-${segment()}-${segment()}`
+}
+
+export async function createSponsorCode(memberId) {
+  // A member can have at most 3 unused codes at a time
+  const { data: existing } = await supabase
+    .from('sponsor_codes')
+    .select('id')
+    .eq('created_by', memberId)
+    .eq('is_used', false)
+
+  if (existing && existing.length >= 3) {
+    return { data: null, error: { message: 'You already have 3 unused invite codes. Wait for one to be used before generating more.' } }
+  }
+
+  const code = generateCode()
+  const { data, error } = await supabase
+    .from('sponsor_codes')
+    .insert({ code, created_by: memberId })
+    .select()
+    .single()
+  return { data, error }
+}
+
+export async function getMySponsorCodes(memberId) {
+  const { data, error } = await supabase
+    .from('sponsor_codes')
+    .select('*')
+    .eq('created_by', memberId)
+    .order('created_at', { ascending: false })
+  return { data, error }
+}
+
+export async function validateSponsorCode(code) {
+  const { data, error } = await supabase
+    .from('sponsor_codes')
+    .select('*')
+    .eq('code', code.trim().toUpperCase())
+    .eq('is_used', false)
+    .single()
+  if (error || !data) return { valid: false, error: 'Invalid or already used invite code.' }
+  return { valid: true, codeData: data }
+}
+
+export async function redeemSponsorCode(code, newMemberId) {
+  const { data, error } = await supabase
+    .from('sponsor_codes')
+    .update({ is_used: true, used_by: newMemberId, used_at: new Date().toISOString() })
+    .eq('code', code.trim().toUpperCase())
+    .eq('is_used', false)
+    .select()
+    .single()
+  return { data, error }
+}
