@@ -135,11 +135,6 @@ export const TAXONOMY = {
         description: "Designing the rules civilization runs on.",
         levels: ["Policy Analyst", "Policy Architect", "Institutional Designer"],
       },
-      "Innovation & Entrepreneurship": {
-        vsc: 1.3,
-        description: "Creating new systems, tools, and organizations that increase civilizational inflow.",
-        levels: ["Innovator", "Lead Innovator", "Civilizational Entrepreneur"],
-      },
       "Impact & Advocacy": {
         vsc: 1.5,
         description: "Organizing, movement building, rights advocacy.",
