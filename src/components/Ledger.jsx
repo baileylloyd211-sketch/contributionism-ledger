@@ -4,6 +4,8 @@ import { TAXONOMY, CONTACT_STATUSES, SAMPLE_MEMBERS, CREDIT_SYSTEM } from '../li
 import { getMembers } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import MemberModal from './MemberModal'
+import InvitePanel from './InvitePanel'
+import { getMyProfile } from '../lib/supabase'
 
 const ALL = 'ALL'
 
@@ -56,7 +58,9 @@ export default function Ledger() {
     }
     load()
   }, [])
-
+ 
+  const [myProfile, setMyProfile] = useState(null)
+  const [showInvite, setShowInvite] = useState(false)
   const filtered = useMemo(() => {
     let list = [...members]
     if (search) {
