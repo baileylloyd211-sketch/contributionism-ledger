@@ -1,11 +1,10 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { TAXONOMY, CONTACT_STATUSES, SAMPLE_MEMBERS, CREDIT_SYSTEM } from '../lib/taxonomy'
-import { getMembers } from '../lib/supabase'
+import { getMembers, getMyProfile } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import MemberModal from './MemberModal'
 import InvitePanel from './InvitePanel'
-import { getMyProfile } from '../lib/supabase'
 
 const ALL = 'ALL'
 
@@ -48,19 +47,23 @@ export default function Ledger() {
   const [filterCat, setFilterCat] = useState(ALL)
   const [sortBy, setSortBy] = useState('score')
   const [loading, setLoading] = useState(false)
+  const [myProfile, setMyProfile] = useState(null)
+  const [showInvite, setShowInvite] = useState(false)
 
   useEffect(() => {
     async function load() {
       setLoading(true)
       const { data } = await getMembers()
       if (data && data.length > 0) setMembers(data)
+      if (user) {
+        const { data: profile } = await getMyProfile(user.id)
+        if (profile) setMyProfile(profile)
+      }
       setLoading(false)
     }
     load()
-  }, [])
- 
-  const [myProfile, setMyProfile] = useState(null)
-  const [showInvite, setShowInvite] = useState(false)
+  }, [user])
+
   const filtered = useMemo(() => {
     let list = [...members]
     if (search) {
@@ -112,9 +115,20 @@ export default function Ledger() {
             </div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               {user ? (
-                <span style={{ fontSize: 11, color: '#7EB8A4', border: '1px solid #7EB8A422', borderRadius: 2, padding: '7px 14px' }}>
-                  ✓ MEMBER
-                </span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => setShowInvite(true)}
+                    style={{
+                      padding: '8px 18px', background: '#0a1a16', border: '1px solid #7EB8A440',
+                      borderRadius: 2, color: '#7EB8A4', fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer',
+                    }}
+                  >
+                    INVITE
+                  </button>
+                  <span style={{ fontSize: 11, color: '#7EB8A4', border: '1px solid #7EB8A422', borderRadius: 2, padding: '7px 14px' }}>
+                    ✓ MEMBER
+                  </span>
+                </div>
               ) : (
                 <button onClick={() => navigate('/auth')} style={{
                   padding: '8px 18px', background: '#0a1a16', border: '1px solid #7EB8A440',
@@ -269,6 +283,9 @@ export default function Ledger() {
       </div>
 
       {selected && <MemberModal member={selected} onClose={() => setSelected(null)} />}
+      {showInvite && myProfile && (
+        <InvitePanel memberId={myProfile.id} onClose={() => setShowInvite(false)} />
+      )}
     </div>
   )
 }
