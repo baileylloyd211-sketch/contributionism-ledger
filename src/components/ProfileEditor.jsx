@@ -94,24 +94,17 @@ export default function ProfileEditor({ userId, existingProfile, onClose, onSave
     }, 1500)
   }
 
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, background: '#000000cc',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 200, padding: 20, overflowY: 'auto',
-    }}>
-      <div style={{
-        background: '#0c0c0c', border: '1px solid #1a1a1a',
-        borderRadius: 4, width: '100%', maxWidth: 480,
-        padding: 36, position: 'relative', margin: 'auto',
-      }}>
-        <button
-          onClick={onClose}
-          style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: '#444', fontSize: 20, cursor: 'pointer' }}
-        >
-          ×
-        </button>
-
+  <div
+  onClick={onClose}
+  style={{
+    position: 'fixed', inset: 0, background: '#000000cc',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    zIndex: 200, padding: 20, overflowY: 'auto',
+  }}>
+  <div
+    onClick={e => e.stopPropagation()}
+    style={{
+      background: '#0c0c0c', border: '1px solid #1a1a1a',
         <div style={{ marginBottom: 28 }}>
           <div style={{ fontSize: 9, color: '#333', letterSpacing: '0.2em', marginBottom: 8 }}>
             {isNew ? 'COMPLETE YOUR PROFILE' : 'EDIT PROFILE'}
