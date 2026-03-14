@@ -5,6 +5,7 @@ import { getMembers, getMyProfile } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import MemberModal from './MemberModal'
 import InvitePanel from './InvitePanel'
+import ProfileEditor from './ProfileEditor'
 
 const ALL = 'ALL'
 
@@ -49,6 +50,7 @@ export default function Ledger() {
   const [loading, setLoading] = useState(false)
   const [myProfile, setMyProfile] = useState(null)
   const [showInvite, setShowInvite] = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -58,11 +60,18 @@ export default function Ledger() {
       if (user) {
         const { data: profile } = await getMyProfile(user.id)
         if (profile) setMyProfile(profile)
+        else setShowProfile(true)
       }
       setLoading(false)
     }
     load()
   }, [user])
+
+  async function handleProfileSaved(updatedProfile) {
+    setMyProfile(updatedProfile)
+    const { data } = await getMembers()
+    if (data && data.length > 0) setMembers(data)
+  }
 
   const filtered = useMemo(() => {
     let list = [...members]
@@ -124,6 +133,15 @@ export default function Ledger() {
                     }}
                   >
                     INVITE
+                  </button>
+                  <button
+                    onClick={() => setShowProfile(true)}
+                    style={{
+                      padding: '8px 18px', background: '#0e0e0e', border: '1px solid #2a2a2a',
+                      borderRadius: 2, color: '#666', fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer',
+                    }}
+                  >
+                    PROFILE
                   </button>
                   <span style={{ fontSize: 11, color: '#7EB8A4', border: '1px solid #7EB8A422', borderRadius: 2, padding: '7px 14px' }}>
                     ✓ MEMBER
@@ -283,8 +301,18 @@ export default function Ledger() {
       </div>
 
       {selected && <MemberModal member={selected} onClose={() => setSelected(null)} />}
+
       {showInvite && myProfile && (
         <InvitePanel memberId={myProfile.id} onClose={() => setShowInvite(false)} />
+      )}
+
+      {showProfile && (
+        <ProfileEditor
+          userId={user?.id}
+          existingProfile={myProfile}
+          onClose={() => setShowProfile(false)}
+          onSaved={handleProfileSaved}
+        />
       )}
     </div>
   )
