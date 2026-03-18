@@ -113,7 +113,7 @@ export default function InvitePanel({ memberId, onClose }) {
                     {c.code}
                   </div>
                   <div style={{ fontSize: 9, color: '#2a2a2a', letterSpacing: '0.1em', marginTop: 3 }}>
-                    {c.is_used
+                    {c.is_used 
                       ? `USED · ${new Date(c.used_at).toLocaleDateString()}`
                       : `CREATED · ${new Date(c.created_at).toLocaleDateString()}`}
                   </div>
