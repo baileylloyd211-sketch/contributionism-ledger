@@ -1,271 +1,307 @@
-import { useState, useMemo, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { TAXONOMY, CONTACT_STATUSES, SAMPLE_MEMBERS, CREDIT_SYSTEM } from '../lib/taxonomy'
-import { getMembers } from '../lib/supabase'
+import { useState, useEffect } from 'react'
+import { TAXONOMY } from '../lib/taxonomy'
+import { logTransaction, getTransactionsForMember } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
-import MemberModal from './MemberModal'
 
-const ALL = 'ALL'
-
-function TierPip({ tier, small }) {
-  const t = TAXONOMY[tier]
-  if (!t) return null
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 4,
-      padding: small ? '2px 7px' : '3px 10px',
-      border: `1px solid ${t.color}33`, borderRadius: 2,
-      color: t.color, fontSize: small ? 9 : 10,
-      letterSpacing: '0.08em', background: `${t.color}0a`,
-      whiteSpace: 'nowrap',
-    }}>
-      <span style={{ width: 4, height: 4, borderRadius: '50%', background: t.color, flexShrink: 0 }} />
-      {tier === 'I' ? 'TIER I' : tier === 'II' ? 'TIER II' : 'TIER III'}
-    </span>
-  )
-}
-
-function StatusDot({ status }) {
-  const info = CONTACT_STATUSES[status] || CONTACT_STATUSES.none
-  if (status === 'none') return null
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9, color: info.color }}>
-      <span style={{ width: 4, height: 4, borderRadius: '50%', background: info.color, flexShrink: 0 }} />
-      {info.label}
-    </span>
-  )
-}
-
-export default function Ledger() {
+export default function MemberModal({ member, myProfile, onClose }) {
   const { user } = useAuth()
-  const navigate = useNavigate()
-  const [members, setMembers] = useState(SAMPLE_MEMBERS)
-  const [selected, setSelected] = useState(null)
-  const [search, setSearch] = useState('')
-  const [filterTier, setFilterTier] = useState(ALL)
-  const [filterCat, setFilterCat] = useState(ALL)
-  const [sortBy, setSortBy] = useState('score')
-  const [loading, setLoading] = useState(false)
+  const [tab, setTab] = useState('profile') // 'profile' | 'offer' | 'history'
+  const [hours, setHours] = useState(1)
+  const [description, setDescription] = useState('')
+  const [category, setCategory] = useState(member.category || '')
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState('')
+  const [history, setHistory] = useState([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
+
+  const tierData = TAXONOMY[member.tier]
+  const catData = tierData?.categories[member.category]
+  const tierColor = tierData?.color || '#666'
+  const levelName = catData?.levels?.[member.level_index] ?? catData?.levels?.[member.levelIndex] ?? ''
+  const vsc = catData?.vsc
+
+  const isOwnProfile = myProfile?.id === member.id
 
   useEffect(() => {
-    async function load() {
-      setLoading(true)
-      const { data } = await getMembers()
-      if (data && data.length > 0) setMembers(data)
-      setLoading(false)
+    if (tab === 'history') {
+      loadHistory()
     }
-    load()
-  }, [])
+  }, [tab])
 
-  const filtered = useMemo(() => {
-    let list = [...members]
-    if (search) {
-      const q = search.toLowerCase()
-      list = list.filter(m =>
-        m.name?.toLowerCase().includes(q) ||
-        m.title?.toLowerCase().includes(q) ||
-        m.category?.toLowerCase().includes(q) ||
-        m.skills?.some(s => s.toLowerCase().includes(q))
-      )
-    }
-    if (filterTier !== ALL) list = list.filter(m => m.tier === filterTier)
-    if (filterCat !== ALL) list = list.filter(m => m.category === filterCat)
-    if (sortBy === 'score') list.sort((a, b) => (b.contribution_score || 0) - (a.contribution_score || 0))
-    if (sortBy === 'name') list.sort((a, b) => a.name.localeCompare(b.name))
-    if (sortBy === 'recent') list.sort((a, b) => new Date(b.start_date) - new Date(a.start_date))
-    if (sortBy === 'verified') list.sort((a, b) => (b.verified_transactions || 0) - (a.verified_transactions || 0))
-    if (sortBy === 'vsc') {
-      list.sort((a, b) => {
-        const va = TAXONOMY[a.tier]?.categories[a.category]?.vsc || 0
-        const vb = TAXONOMY[b.tier]?.categories[b.category]?.vsc || 0
-        return vb - va
-      })
-    }
-    return list
-  }, [members, search, filterTier, filterCat, sortBy])
+  async function loadHistory() {
+    setLoadingHistory(true)
+    const { data } = await getTransactionsForMember(member.id)
+    if (data) setHistory(data)
+    setLoadingHistory(false)
+  }
 
-  const selectStyle = {
-    background: '#0e0e0e', border: '1px solid #1a1a1a', borderRadius: 2,
-    padding: '8px 28px 8px 11px', color: '#777', fontSize: 11,
-    cursor: 'pointer', letterSpacing: '0.04em',
+  async function handleOffer(e) {
+    e.preventDefault()
+    if (!myProfile) { setError('You need a member profile to make contributions.'); return }
+    setSending(true)
+    setError('')
+
+    const { error: err } = await logTransaction({
+      memberId: member.id,
+      offeredBy: myProfile.id,
+      hours: Number(hours),
+      description: description.trim(),
+      category,
+    })
+
+    if (err) {
+      setError(err.message)
+      setSending(false)
+      return
+    }
+
+    setSent(true)
+    setSending(false)
+  }
+
+  const tabStyle = (t) => ({
+    padding: '6px 14px', fontSize: 10, letterSpacing: '0.1em',
+    cursor: 'pointer', border: 'none', borderRadius: 2,
+    background: tab === t ? '#0a1a16' : 'none',
+    color: tab === t ? '#7EB8A4' : '#333',
+  })
+
+  const inputStyle = {
+    width: '100%', background: '#0e0e0e', border: '1px solid #1a1a1a',
+    borderRadius: 2, padding: '10px 13px', color: '#ccc', fontSize: 13,
+    boxSizing: 'border-box', outline: 'none',
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#080808', paddingBottom: 80 }}>
-      <div style={{ borderBottom: '1px solid #141414', padding: '28px 40px 22px' }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
-            <div>
-              <div style={{ fontSize: 10, color: '#333', letterSpacing: '0.22em', marginBottom: 6 }}>
-                CONTRIBUTIONISM · PUBLIC LEDGER · PORTLAND PILOT
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, background: '#000000cc',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 200, padding: 20,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#0c0c0c', border: '1px solid #1a1a1a',
+          borderRadius: 4, width: '100%', maxWidth: 500,
+          maxHeight: '90vh', overflowY: 'auto',
+          padding: 36, position: 'relative',
+        }}
+      >
+        {/* Close */}
+        <button
+          onClick={onClose}
+          style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: '#444', fontSize: 20, cursor: 'pointer' }}
+        >
+          ×
+        </button>
+
+        {/* Header */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 22, fontFamily: "'Playfair Display', serif", color: '#e8e4dc', marginBottom: 4 }}>
+            {member.name}
+          </div>
+          <div style={{ fontSize: 12, color: '#444' }}>{member.title}</div>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid #111', paddingBottom: 12 }}>
+          <button style={tabStyle('profile')} onClick={() => setTab('profile')}>PROFILE</button>
+          {!isOwnProfile && user && <button style={tabStyle('offer')} onClick={() => setTab('offer')}>OFFER CONTRIBUTION</button>}
+          <button style={tabStyle('history')} onClick={() => setTab('history')}>HISTORY</button>
+        </div>
+
+        {/* PROFILE TAB */}
+        {tab === 'profile' && (
+          <div>
+            {member.description && (
+              <div style={{ fontSize: 12, color: '#555', lineHeight: 1.7, marginBottom: 24 }}>
+                {member.description}
               </div>
-              <div style={{ fontSize: 30, fontFamily: "'Playfair Display', serif", color: '#e8e4dc', lineHeight: 1.1 }}>
-                The Contribution Registry
-              </div>
-              <div style={{ fontSize: 11, color: '#444', marginTop: 6 }}>
-                1 credit = 1 hour of service · contributions verified by members · credits depreciate {CREDIT_SYSTEM.depreciationRate * 100}%/week
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              {user ? (
-                <span style={{ fontSize: 11, color: '#7EB8A4', border: '1px solid #7EB8A422', borderRadius: 2, padding: '7px 14px' }}>
-                  ✓ MEMBER
-                </span>
-              ) : (
-                <button onClick={() => navigate('/auth')} style={{
-                  padding: '8px 18px', background: '#0a1a16', border: '1px solid #7EB8A440',
-                  borderRadius: 2, color: '#7EB8A4', fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer',
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
+              <div>
+                <div style={{ fontSize: 9, color: '#222', letterSpacing: '0.16em', marginBottom: 5 }}>TIER</div>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  padding: '3px 10px', border: `1px solid ${tierColor}33`,
+                  borderRadius: 2, color: tierColor, fontSize: 10,
+                  letterSpacing: '0.08em', background: `${tierColor}0a`,
                 }}>
-                  JOIN / SIGN IN
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ padding: '14px 40px', borderBottom: '1px solid #0e0e0e', background: '#080808', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search name, title, skill, category..."
-            style={{ flex: '1 1 260px', background: '#0e0e0e', border: '1px solid #1a1a1a', borderRadius: 2, padding: '8px 13px', color: '#ccc', fontSize: 12 }}
-          />
-          <div style={{ position: 'relative' }}>
-            <select value={filterTier} onChange={e => setFilterTier(e.target.value)} style={selectStyle}>
-              <option value={ALL}>All Tiers</option>
-              <option value="I">Tier I — General</option>
-              <option value="II">Tier II — Skilled</option>
-              <option value="III">Tier III — Advanced</option>
-            </select>
-            <span style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', color: '#333', pointerEvents: 'none', fontSize: 9 }}>▾</span>
-          </div>
-          <div style={{ position: 'relative' }}>
-            <select value={filterCat} onChange={e => setFilterCat(e.target.value)} style={selectStyle}>
-              <option value={ALL}>All Categories</option>
-              {Object.entries(TAXONOMY).map(([tier, t]) =>
-                Object.keys(t.categories).map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))
-              )}
-            </select>
-            <span style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', color: '#333', pointerEvents: 'none', fontSize: 9 }}>▾</span>
-          </div>
-          <div style={{ position: 'relative' }}>
-            <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={selectStyle}>
-              <option value="score">Sort: Score</option>
-              <option value="vsc">Sort: VSC (Vital Work First)</option>
-              <option value="verified">Sort: Most Verified</option>
-              <option value="recent">Sort: Most Recent</option>
-              <option value="name">Sort: Name</option>
-            </select>
-            <span style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', color: '#333', pointerEvents: 'none', fontSize: 9 }}>▾</span>
-          </div>
-          <div style={{ fontSize: 10, color: '#2a2a2a', marginLeft: 'auto', letterSpacing: '0.1em' }}>
-            {filtered.length} MEMBER{filtered.length !== 1 ? 'S' : ''}
-          </div>
-        </div>
-      </div>
-
-      <div style={{ padding: '10px 40px', borderBottom: '1px solid #0c0c0c' }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto', display: 'grid', gridTemplateColumns: '220px 1fr 160px 90px 90px 100px', gap: 12, fontSize: 9, color: '#2a2a2a', letterSpacing: '0.14em' }}>
-          <span>NAME</span>
-          <span>CATEGORY · LEVEL</span>
-          <span>TIER</span>
-          <span style={{ textAlign: 'right' }}>SCORE</span>
-          <span style={{ textAlign: 'right' }}>VERIFIED</span>
-          <span style={{ textAlign: 'right' }}>STATUS</span>
-        </div>
-      </div>
-
-      <div style={{ padding: '0 40px' }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-          {loading && (
-            <div style={{ padding: '40px 0', textAlign: 'center', fontSize: 11, color: '#333', letterSpacing: '0.1em' }}>
-              LOADING...
-            </div>
-          )}
-          {filtered.map((m) => {
-            const tierData = TAXONOMY[m.tier]
-            const catData = tierData?.categories[m.category]
-            const tierColor = tierData?.color || '#666'
-            const levelName = catData?.levels?.[m.levelIndex] || ''
-            const vsc = catData?.vsc
-            return (
-              <div
-                key={m.id}
-                onClick={() => setSelected(m)}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '220px 1fr 160px 90px 90px 100px',
-                  gap: 12,
-                  padding: '13px 0',
-                  borderBottom: '1px solid #0c0c0c',
-                  cursor: 'pointer',
-                  transition: 'background 0.1s',
-                  borderRadius: 2,
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = '#0d0d0d'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                <div>
-                  <div style={{ fontSize: 14, color: '#bbb', marginBottom: 2 }}>{m.name}</div>
-                  <div style={{ fontSize: 10, color: '#3a3a3a' }}>{m.title}</div>
+                  <span style={{ width: 4, height: 4, borderRadius: '50%', background: tierColor }} />
+                  {member.tier === 'I' ? 'TIER I' : member.tier === 'II' ? 'TIER II' : 'TIER III'}
                 </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 9, color: '#222', letterSpacing: '0.16em', marginBottom: 5 }}>CATEGORY</div>
+                <div style={{ fontSize: 12, color: '#555' }}>{member.category || '—'}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 9, color: '#222', letterSpacing: '0.16em', marginBottom: 5 }}>LEVEL</div>
+                <div style={{ fontSize: 12, color: '#555' }}>
+                  {levelName || '—'}
+                  {vsc && vsc >= 1.7 && (
+                    <span style={{ marginLeft: 8, fontSize: 9, color: '#B87A6E', border: '1px solid #B87A6E22', padding: '1px 6px', borderRadius: 2 }}>
+                      VSC {vsc.toFixed(1)}×
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 9, color: '#222', letterSpacing: '0.16em', marginBottom: 5 }}>MEMBER SINCE</div>
+                <div style={{ fontSize: 12, color: '#555' }}>
+                  {member.start_date ? new Date(member.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short' }) : '—'}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, borderTop: '1px solid #111', paddingTop: 20 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 22, color: tierColor, marginBottom: 3 }}>{member.contribution_score?.toLocaleString() || '0'}</div>
+                <div style={{ fontSize: 9, color: '#222', letterSpacing: '0.12em' }}>SCORE</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 22, color: '#ccc', marginBottom: 3 }}>{member.credits?.toLocaleString() || '0'}</div>
+                <div style={{ fontSize: 9, color: '#222', letterSpacing: '0.12em' }}>CREDITS</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 22, color: '#555', marginBottom: 3 }}>{member.verified_transactions || '0'}</div>
+                <div style={{ fontSize: 9, color: '#222', letterSpacing: '0.12em' }}>VERIFIED</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* OFFER CONTRIBUTION TAB */}
+        {tab === 'offer' && (
+          <div>
+            {sent ? (
+              <div style={{ textAlign: 'center', padding: '30px 0' }}>
+                <div style={{ fontSize: 28, marginBottom: 12 }}>✓</div>
+                <div style={{ fontSize: 14, color: '#7EB8A4', marginBottom: 8 }}>Contribution logged</div>
+                <div style={{ fontSize: 11, color: '#444', lineHeight: 1.6 }}>
+                  This contribution is pending verification by {member.name}.<br />
+                  Credits and score will update once verified.
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleOffer} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ fontSize: 11, color: '#444', lineHeight: 1.6, marginBottom: 4 }}>
+                  Log a contribution you are offering to <span style={{ color: '#7EB8A4' }}>{member.name}</span>.
+                  They will need to verify it before credits are awarded.
+                </div>
+
                 <div>
-                  <div style={{ fontSize: 12, color: '#555', marginBottom: 3 }}>{m.category}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 10, color: '#333' }}>{levelName}</span>
-                    {vsc && vsc >= 1.7 && (
-                      <span style={{ fontSize: 9, color: '#B87A6E', border: '1px solid #B87A6E22', padding: '1px 6px', borderRadius: 2 }}>
-                        VSC {vsc.toFixed(1)}×
-                      </span>
-                    )}
+                  <div style={{ fontSize: 9, color: '#333', letterSpacing: '0.16em', marginBottom: 5 }}>HOURS *</div>
+                  <input
+                    style={inputStyle}
+                    type="number"
+                    min="0.5"
+                    max="100"
+                    step="0.5"
+                    value={hours}
+                    onChange={e => setHours(e.target.value)}
+                    required
+                  />
+                  <div style={{ fontSize: 10, color: '#222', marginTop: 4 }}>1 hour = 1 credit</div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 9, color: '#333', letterSpacing: '0.16em', marginBottom: 5 }}>CATEGORY *</div>
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      style={{ ...inputStyle, cursor: 'pointer', appearance: 'none', paddingRight: 30 }}
+                      value={category}
+                      onChange={e => setCategory(e.target.value)}
+                      required
+                    >
+                      <option value="">Select category...</option>
+                      {Object.entries(TAXONOMY).map(([tier, t]) =>
+                        Object.keys(t.categories).map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))
+                      )}
+                    </select>
+                    <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#333', pointerEvents: 'none', fontSize: 9 }}>▾</span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <TierPip tier={m.tier} small />
+
+                <div>
+                  <div style={{ fontSize: 9, color: '#333', letterSpacing: '0.16em', marginBottom: 5 }}>DESCRIPTION *</div>
+                  <textarea
+                    style={{ ...inputStyle, minHeight: 90, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.6 }}
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    placeholder="Describe what you contributed or are offering..."
+                    required
+                  />
                 </div>
-                <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                  <span style={{ fontSize: 14, color: tierColor }}>{m.contribution_score?.toLocaleString()}</span>
-                </div>
-                <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                  <span style={{ fontSize: 13, color: '#555' }}>{m.verified_transactions}</span>
-                </div>
-                <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                  <StatusDot status={m.contact_status} />
-                </div>
+
+                {error && (
+                  <div style={{ fontSize: 11, color: '#B87A6E', padding: '8px 12px', background: '#1a0e0e', borderRadius: 2 }}>
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={sending}
+                  style={{
+                    width: '100%', padding: '12px', background: '#0a1a16',
+                    border: '1px solid #7EB8A440', borderRadius: 2,
+                    color: '#7EB8A4', fontSize: 12, letterSpacing: '0.1em',
+                    cursor: sending ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {sending ? 'LOGGING...' : 'LOG CONTRIBUTION'}
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+
+        {/* HISTORY TAB */}
+        {tab === 'history' && (
+          <div>
+            {loadingHistory ? (
+              <div style={{ textAlign: 'center', padding: '30px 0', fontSize: 11, color: '#333', letterSpacing: '0.1em' }}>
+                LOADING...
               </div>
-            )
-          })}
-          {!loading && filtered.length === 0 && (
-            <div style={{ padding: '60px 0', textAlign: 'center', color: '#2a2a2a', fontSize: 12, letterSpacing: '0.1em' }}>
-              NO MEMBERS MATCH YOUR SEARCH
-            </div>
-          )}
-        </div>
+            ) : history.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '30px 0', fontSize: 11, color: '#2a2a2a', letterSpacing: '0.08em' }}>
+                No contributions logged yet.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {history.map(t => (
+                  <div key={t.id} style={{
+                    padding: '12px 14px', borderRadius: 2,
+                    background: t.verified ? '#0e1612' : '#0e0e0e',
+                    border: `1px solid ${t.verified ? '#7EB8A418' : '#111'}`,
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <div style={{ fontSize: 12, color: '#777' }}>{t.description}</div>
+                      <div style={{ fontSize: 11, color: t.verified ? '#7EB8A4' : '#444', whiteSpace: 'nowrap', marginLeft: 12 }}>
+                        {t.verified ? '✓ verified' : t.status === 'rejected' ? '✗ rejected' : '⏳ pending'}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 16, fontSize: 10, color: '#333' }}>
+                      <span>{t.hours} hr{t.hours !== 1 ? 's' : ''}</span>
+                      <span>{t.category}</span>
+                      {t.score_awarded && <span>+{t.score_awarded} score</span>}
+                      <span>{new Date(t.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
-
-      <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0,
-        background: '#050505', borderTop: '1px solid #111',
-        padding: '10px 40px', display: 'flex', flexWrap: 'wrap',
-        fontSize: 9, color: '#222', letterSpacing: '0.1em', justifyContent: 'center',
-      }}>
-        {[
-          'ENTRY: 100 CREDITS',
-          'ACCESS UNLOCKS: 25 → 50 → 100 CREDITS',
-          'DEPRECIATION: 2%/WEEK ON UNSPENT BALANCE',
-          'VERIFICATION: EXISTING MEMBER REQUIRED TO JOIN',
-          'SCORING: HOURS × TIER × LEVEL × VSC × CONSISTENCY',
-        ].map((item, i) => (
-          <span key={i} style={{ padding: '0 14px', borderLeft: i > 0 ? '1px solid #1a1a1a' : 'none' }}>{item}</span>
-        ))}
-      </div>
-
-      {selected && <MemberModal member={selected} onClose={() => setSelected(null)} />}
     </div>
   )
 }
-
