@@ -300,8 +300,8 @@ export default function Ledger() {
         ))}
       </div>
 
-     {selected && <MemberModal member={selected} myProfile={myProfile} onClose={() => setSelected(null)} />}
-     
+      {selected && <MemberModal member={selected} onClose={() => setSelected(null)} />}
+
       {showInvite && myProfile && (
         <InvitePanel memberId={myProfile.id} onClose={() => setShowInvite(false)} />
       )}
