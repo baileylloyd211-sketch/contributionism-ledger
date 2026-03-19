@@ -5,6 +5,8 @@ import { getMembers, getMyProfile } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import MemberModal from './MemberModal'
 import InvitePanel from './InvitePanel'
+import { getMyProfile } from '../lib/supabase'
+import InvitePanel from './InvitePanel'
 import ProfileEditor from './ProfileEditor'
 
 const ALL = 'ALL'
