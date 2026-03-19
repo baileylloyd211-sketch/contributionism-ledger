@@ -47,20 +47,19 @@ export default function Ledger(){
   const [showInvite,setShowInvite]=useState(false)
   const [showProfile,setShowProfile]=useState(false)
 
-  useEffect(()=>{
-    async function load(){
-      setLoading(true)
-      const {data}=await getMembers()
-      if(data&&data.length>0)setMembers(data)
-      if(user){
-        const {data:profile}=await getMyProfile(user.id)
-        if(profile)setMyProfile(profile)
-        else setShowProfile(true)
-      }
-      setLoading(false)
+ useEffect(() => {
+  async function load() {
+    setLoading(true)
+    const { data } = await getMembers()
+    if (data && data.length > 0) setMembers(data)
+    if (user) {
+      const { data: profile } = await getMyProfile(user.id)
+      if (profile) setMyProfile(profile)
     }
-    load()
-  },[user])
+    setLoading(false)
+  }
+  load()
+}, [user])
 
   async function handleProfileSaved(updatedProfile){
     setMyProfile(updatedProfile)
