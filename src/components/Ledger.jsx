@@ -227,7 +227,7 @@ export default function Ledger() {
       </div>
 
       {/* Modals / future components */}
-      {selected && (
+ {selected && (
   <div
     style={{
       position: 'fixed',
@@ -235,51 +235,55 @@ export default function Ledger() {
       left: 0,
       right: 0,
       bottom: 0,
-      background: 'rgba(0, 0, 0, 0.85)',
+      backgroundColor: 'rgba(0, 0, 0, 0.85)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 1000,
-      backdropFilter: 'blur(4px)',
+      zIndex: 2000,  // High z-index to ensure it's on top of everything
+      backdropFilter: 'blur(6px)',  // Nice blur effect
     }}
-    onClick={() => setSelected(null)} // click outside to close
+    onClick={() => setSelected(null)}  // Close on backdrop click
   >
     <div
       style={{
-        background: '#111',
-        padding: '32px',
+        backgroundColor: '#111',
         borderRadius: '12px',
         width: '90%',
         maxWidth: '600px',
-        maxHeight: '80vh',
+        maxHeight: '85vh',
         overflowY: 'auto',
+        padding: '32px',
         border: '1px solid #333',
-        boxShadow: '0 20px 40px rgba(0,0,0,0.7)',
+        boxShadow: '0 20px 50px rgba(0,0,0,0.8)',
+        position: 'relative',
       }}
-      onClick={e => e.stopPropagation()} // don't close when clicking inside
+      onClick={(e) => e.stopPropagation()}  // Prevent closing when clicking inside
     >
       <h2 style={{ color: '#e8e4dc', marginBottom: 20, fontSize: 24 }}>
         {selected.name}
       </h2>
-      <div style={{ color: '#ccc', fontSize: 15, lineHeight: 1.6 }}>
+
+      <div style={{ color: '#ccc', lineHeight: 1.6, fontSize: 15 }}>
         <p><strong>Category:</strong> {selected.category || 'N/A'}</p>
         <p><strong>Title:</strong> {selected.title || 'N/A'}</p>
         <p><strong>Tier:</strong> {selected.tier || 'N/A'}</p>
         <p><strong>CS Score:</strong> {selected.contribution_score?.toFixed(1) || '0.0'}</p>
         <p><strong>Verified Events:</strong> {selected.verified_events || 0}</p>
-        {/* Add more details here later, e.g. perks preview */}
+        {/* Add more fields/perks later */}
       </div>
+
       <button
         onClick={() => setSelected(null)}
         style={{
           marginTop: 24,
-          padding: '10px 24px',
-          background: '#0a1a16',
+          padding: '12px 28px',
+          backgroundColor: '#0a1a16',
           border: '1px solid #7EB8A4',
-          borderRadius: 6,
+          borderRadius: '6px',
           color: '#7EB8A4',
-          fontSize: 13,
+          fontSize: 14,
           cursor: 'pointer',
+          fontWeight: 'bold',
         }}
       >
         Close
