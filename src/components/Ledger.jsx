@@ -1,205 +1,235 @@
-import { useState, useMemo, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { TAXONOMY, CONTACT_STATUSES, SAMPLE_MEMBERS, CREDIT_SYSTEM } from '../lib/taxonomy'
-import { getMembers, getMyProfile } from '../lib/supabase'
-import { useAuth } from '../hooks/useAuth'
-import MemberModal from './MemberModal'
-import InvitePanel from './InvitePanel'
-import { getMyProfile } from '../lib/supabase'
-import InvitePanel from './InvitePanel'
-import ProfileEditor from './ProfileEditor'
+import { useState, useMemo } from 'react';
+// import { useNavigate } from 'react-router-dom'; // commented for prototype; add back when needed
+// import { getMembers, getMyProfile } from '../lib/supabase'; // commented until real backend
+import { TAXONOMY } from '../lib/taxonomy'; // assume this has domain/category mappings
 
-const ALL = 'ALL'
+// Mock data shaped to Contributionism spec
+const SAMPLE_MEMBERS = [
+  {
+    id: '1',
+    name: 'Lloyd F. Bailey',
+    title: 'Systems Designer – Portland Pilot',
+    category: 'Technology',
+    level: 'Principal Engineer',
+    tier: 'II', // maps to Advanced
+    contribution_score: 8.7,
+    verified_events: 12,
+    contact_status: 'active',
+  },
+  // add more mocks as needed
+];
 
-function TierPip({ tier, small }) {
-  const t = TAXONOMY[tier]
-  if (!t) return null
+const CS_TIERS = [
+  { min: 0, max: 0.1, label: 'Baseline', perks: 'Guaranteed floor access' },
+  { min: 0.1, max: 4.9, label: 'Contributor', perks: '5% utility discount' },
+  { min: 5.0, max: 12.9, label: 'Advanced', perks: '5% discount + $10k micro-grant eligibility' },
+  { min: 13.0, max: 24.9, label: 'Expert', perks: 'Above + 30-day permit fast-track' },
+  { min: 25.0, max: 47.9, label: 'Principal', perks: 'Above + low-interest loans' },
+  { min: 48.0, label: 'Founding', perks: 'Above + lifetime 10% discount + naming rights' },
+];
+
+function getTier(score) {
+  return CS_TIERS.find(t => score >= t.min && (t.max === undefined || score <= t.max)) || CS_TIERS[0];
+}
+
+function TierBadge({ tierLabel, small = false }) {
+  const t = CS_TIERS.find(t => t.label === tierLabel) || {};
+  if (!t.label) return null;
   return (
-    <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:small?'2px 7px':'3px 10px',border:`1px solid ${t.color}33`,borderRadius:2,color:t.color,fontSize:small?9:10,letterSpacing:'0.08em',background:`${t.color}0a`,whiteSpace:'nowrap'}}>
-      <span style={{width:4,height:4,borderRadius:'50%',background:t.color,flexShrink:0}}/>
-      {tier==='I'?'TIER I':tier==='II'?'TIER II':'TIER III'}
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        padding: small ? '2px 7px' : '3px 10px',
+        border: `1px solid ${t.color || '#666'}33`,
+        borderRadius: 2,
+        color: t.color || '#777',
+        fontSize: small ? 9 : 10,
+        letterSpacing: '0.08em',
+        background: `${t.color || '#444'}0a`,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <span style={{ width: 4, height: 4, borderRadius: '50%', background: t.color || '#666', flexShrink: 0 }} />
+      {tierLabel}
     </span>
-  )
+  );
 }
 
-function StatusDot({status}){
-  const info=CONTACT_STATUSES[status]||CONTACT_STATUSES.none
-  if(status==='none')return null
-  return(
-    <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:9,color:info.color}}>
-      <span style={{width:4,height:4,borderRadius:'50%',background:info.color,flexShrink:0}}/>
-      {info.label}
-    </span>
-  )
-}
+export default function Ledger() {
+  // const { user } = useAuth(); // commented for prototype
+  // const navigate = useNavigate();
 
-export default function Ledger(){
-  const {user}=useAuth()
-  const navigate=useNavigate()
-  const [members,setMembers]=useState(SAMPLE_MEMBERS)
-  const [selected,setSelected]=useState(null)
-  const [search,setSearch]=useState('')
-  const [filterTier,setFilterTier]=useState(ALL)
-  const [filterCat,setFilterCat]=useState(ALL)
-  const [sortBy,setSortBy]=useState('score')
-  const [loading,setLoading]=useState(false)
-  const [myProfile,setMyProfile]=useState(null)
-  const [showInvite,setShowInvite]=useState(false)
-  const [showProfile,setShowProfile]=useState(false)
+  const [members] = useState(SAMPLE_MEMBERS);
+  const [selected, setSelected] = useState(null);
+  const [search, setSearch] = useState('');
+  const [filterTier, setFilterTier] = useState('ALL');
+  const [sortBy, setSortBy] = useState('score');
 
- useEffect(() => {
-  async function load() {
-    setLoading(true)
-    const { data } = await getMembers()
-    if (data && data.length > 0) setMembers(data)
-    if (user) {
-      const { data: profile } = await getMyProfile(user.id)
-      if (profile) setMyProfile(profile)
+  // Mock CS calculator state
+  const [calcInputs, setCalcInputs] = useState({
+    T: 2.5, S: 2.0, R: 2.0, I: 2.5, output: 0.9, quality: 0.85, impact: 0.8,
+  });
+
+  const calculatedCS = useMemo(() => {
+    const role = calcInputs.T * calcInputs.S * calcInputs.R * calcInputs.I;
+    const perf = calcInputs.output * calcInputs.quality * calcInputs.impact;
+    return Number((role * perf).toFixed(2));
+  }, [calcInputs]);
+
+  const calcTier = getTier(calculatedCS);
+
+  const filtered = useMemo(() => {
+    let list = [...members];
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(m =>
+        m.name?.toLowerCase().includes(q) ||
+        m.title?.toLowerCase().includes(q) ||
+        m.category?.toLowerCase().includes(q)
+      );
     }
-    setLoading(false)
-  }
-  load()
-}, [user])
+    if (filterTier !== 'ALL') list = list.filter(m => m.tier === filterTier);
+    if (sortBy === 'score') list.sort((a, b) => (b.contribution_score || 0) - (a.contribution_score || 0));
+    // add other sorts as needed
+    return list;
+  }, [members, search, filterTier, sortBy]);
 
-  async function handleProfileSaved(updatedProfile){
-    setMyProfile(updatedProfile)
-    const {data}=await getMembers()
-    if(data&&data.length>0)setMembers(data)
-  }
-
-  const filtered=useMemo(()=>{
-    let list=[...members]
-    if(search){
-      const q=search.toLowerCase()
-      list=list.filter(m=>m.name?.toLowerCase().includes(q)||m.title?.toLowerCase().includes(q)||m.category?.toLowerCase().includes(q)||m.skills?.some(s=>s.toLowerCase().includes(q)))
-    }
-    if(filterTier!==ALL)list=list.filter(m=>m.tier===filterTier)
-    if(filterCat!==ALL)list=list.filter(m=>m.category===filterCat)
-    if(sortBy==='score')list.sort((a,b)=>(b.contribution_score||0)-(a.contribution_score||0))
-    if(sortBy==='name')list.sort((a,b)=>a.name.localeCompare(b.name))
-    if(sortBy==='recent')list.sort((a,b)=>new Date(b.start_date)-new Date(a.start_date))
-    if(sortBy==='verified')list.sort((a,b)=>(b.verified_transactions||0)-(a.verified_transactions||0))
-    if(sortBy==='vsc'){list.sort((a,b)=>{const va=TAXONOMY[a.tier]?.categories[a.category]?.vsc||0;const vb=TAXONOMY[b.tier]?.categories[b.category]?.vsc||0;return vb-va})}
-    return list
-  },[members,search,filterTier,filterCat,sortBy])
-
-  const selectStyle={background:'#0e0e0e',border:'1px solid #1a1a1a',borderRadius:2,padding:'8px 28px 8px 11px',color:'#777',fontSize:11,cursor:'pointer',letterSpacing:'0.04em'}
-
-  return(
-    <div style={{minHeight:'100vh',background:'#080808',paddingBottom:80}}>
-      <div style={{borderBottom:'1px solid #141414',padding:'28px 40px 22px'}}>
-        <div style={{maxWidth:1000,margin:'0 auto'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',flexWrap:'wrap',gap:16}}>
+  return (
+    <div style={{ minHeight: '100vh', background: '#080808', paddingBottom: 120, color: '#ccc' }}>
+      {/* Header */}
+      <div style={{ borderBottom: '1px solid #141414', padding: '28px 40px 22px' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
             <div>
-              <div style={{fontSize:10,color:'#333',letterSpacing:'0.22em',marginBottom:6}}>CONTRIBUTIONISM · PUBLIC LEDGER · PORTLAND PILOT</div>
-              <div style={{fontSize:30,fontFamily:"'Playfair Display', serif",color:'#e8e4dc',lineHeight:1.1}}>The Contribution Registry</div>
-              <div style={{fontSize:11,color:'#444',marginTop:6}}>1 credit = 1 hour of service · contributions verified by members · credits depreciate {CREDIT_SYSTEM.depreciationRate*100}%/week</div>
-            </div>
-            <div style={{display:'flex',gap:10,alignItems:'center'}}>
-              {user?(
-                <div style={{display:'flex',gap:8}}>
-                  <button onClick={()=>setShowInvite(true)} style={{padding:'8px 18px',background:'#0a1a16',border:'1px solid #7EB8A440',borderRadius:2,color:'#7EB8A4',fontSize:11,letterSpacing:'0.08em',cursor:'pointer'}}>INVITE</button>
-                  <button onClick={()=>setShowProfile(true)} style={{padding:'8px 18px',background:'#0e0e0e',border:'1px solid #2a2a2a',borderRadius:2,color:'#666',fontSize:11,letterSpacing:'0.08em',cursor:'pointer'}}>PROFILE</button>
-                  <span style={{fontSize:11,color:'#7EB8A4',border:'1px solid #7EB8A422',borderRadius:2,padding:'7px 14px'}}>✓ MEMBER</span>
-                </div>
-              ):(
-                <button onClick={()=>navigate('/auth')} style={{padding:'8px 18px',background:'#0a1a16',border:'1px solid #7EB8A440',borderRadius:2,color:'#7EB8A4',fontSize:11,letterSpacing:'0.08em',cursor:'pointer'}}>JOIN / SIGN IN</button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{padding:'14px 40px',borderBottom:'1px solid #0e0e0e',background:'#080808',position:'sticky',top:0,zIndex:100}}>
-        <div style={{maxWidth:1000,margin:'0 auto',display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name, title, skill, category..." style={{flex:'1 1 260px',background:'#0e0e0e',border:'1px solid #1a1a1a',borderRadius:2,padding:'8px 13px',color:'#ccc',fontSize:12}}/>
-          <div style={{position:'relative'}}>
-            <select value={filterTier} onChange={e=>setFilterTier(e.target.value)} style={selectStyle}>
-              <option value={ALL}>All Tiers</option>
-              <option value="I">Tier I — General</option>
-              <option value="II">Tier II — Skilled</option>
-              <option value="III">Tier III — Advanced</option>
-            </select>
-            <span style={{position:'absolute',right:9,top:'50%',transform:'translateY(-50%)',color:'#333',pointerEvents:'none',fontSize:9}}>▾</span>
-          </div>
-          <div style={{position:'relative'}}>
-            <select value={filterCat} onChange={e=>setFilterCat(e.target.value)} style={selectStyle}>
-              <option value={ALL}>All Categories</option>
-              {Object.entries(TAXONOMY).map(([tier,t])=>Object.keys(t.categories).map(cat=>(<option key={cat} value={cat}>{cat}</option>)))}
-            </select>
-            <span style={{position:'absolute',right:9,top:'50%',transform:'translateY(-50%)',color:'#333',pointerEvents:'none',fontSize:9}}>▾</span>
-          </div>
-          <div style={{position:'relative'}}>
-            <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={selectStyle}>
-              <option value="score">Sort: Score</option>
-              <option value="vsc">Sort: VSC (Vital Work First)</option>
-              <option value="verified">Sort: Most Verified</option>
-              <option value="recent">Sort: Most Recent</option>
-              <option value="name">Sort: Name</option>
-            </select>
-            <span style={{position:'absolute',right:9,top:'50%',transform:'translateY(-50%)',color:'#333',pointerEvents:'none',fontSize:9}}>▾</span>
-          </div>
-          <div style={{fontSize:10,color:'#2a2a2a',marginLeft:'auto',letterSpacing:'0.1em'}}>{filtered.length} MEMBER{filtered.length!==1?'S':''}</div>
-        </div>
-      </div>
-
-      <div style={{padding:'10px 40px',borderBottom:'1px solid #0c0c0c'}}>
-        <div style={{maxWidth:1000,margin:'0 auto',display:'grid',gridTemplateColumns:'220px 1fr 160px 90px 90px 100px',gap:12,fontSize:9,color:'#2a2a2a',letterSpacing:'0.14em'}}>
-          <span>NAME</span><span>CATEGORY · LEVEL</span><span>TIER</span>
-          <span style={{textAlign:'right'}}>SCORE</span>
-          <span style={{textAlign:'right'}}>VERIFIED</span>
-          <span style={{textAlign:'right'}}>STATUS</span>
-        </div>
-      </div>
-
-      <div style={{padding:'0 40px'}}>
-        <div style={{maxWidth:1000,margin:'0 auto'}}>
-          {loading&&<div style={{padding:'40px 0',textAlign:'center',fontSize:11,color:'#333',letterSpacing:'0.1em'}}>LOADING...</div>}
-          {filtered.map((m)=>{
-            const tierData=TAXONOMY[m.tier]
-            const catData=tierData?.categories[m.category]
-            const tierColor=tierData?.color||'#666'
-            const levelName=catData?.levels?.[m.levelIndex]||''
-            const vsc=catData?.vsc
-            return(
-              <div key={m.id} onClick={()=>setSelected(m)} style={{display:'grid',gridTemplateColumns:'220px 1fr 160px 90px 90px 100px',gap:12,padding:'13px 0',borderBottom:'1px solid #0c0c0c',cursor:'pointer',transition:'background 0.1s',borderRadius:2}} onMouseEnter={e=>e.currentTarget.style.background='#0d0d0d'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                <div>
-                  <div style={{fontSize:14,color:'#bbb',marginBottom:2}}>{m.name}</div>
-                  <div style={{fontSize:10,color:'#3a3a3a'}}>{m.title}</div>
-                </div>
-                <div>
-                  <div style={{fontSize:12,color:'#555',marginBottom:3}}>{m.category}</div>
-                  <div style={{display:'flex',alignItems:'center',gap:8}}>
-                    <span style={{fontSize:10,color:'#333'}}>{levelName}</span>
-                    {vsc&&vsc>=1.7&&<span style={{fontSize:9,color:'#B87A6E',border:'1px solid #B87A6E22',padding:'1px 6px',borderRadius:2}}>VSC {vsc.toFixed(1)}×</span>}
-                  </div>
-                </div>
-                <div style={{display:'flex',alignItems:'center'}}><TierPip tier={m.tier} small/></div>
-                <div style={{textAlign:'right',display:'flex',flexDirection:'column',justifyContent:'center'}}>
-                  <span style={{fontSize:14,color:tierColor}}>{m.contribution_score?.toLocaleString()}</span>
-                </div>
-                <div style={{textAlign:'right',display:'flex',alignItems:'center',justifyContent:'flex-end'}}>
-                  <span style={{fontSize:13,color:'#555'}}>{m.verified_transactions}</span>
-                </div>
-                <div style={{textAlign:'right',display:'flex',alignItems:'center',justifyContent:'flex-end'}}>
-                  <StatusDot status={m.contact_status}/>
-                </div>
+              <div style={{ fontSize: 10, color: '#333', letterSpacing: '0.22em', marginBottom: 6 }}>
+                CONTRIBUTIONISM · PORTLAND PILOT LEDGER
               </div>
-            )
-          })}
-          {!loading&&filtered.length===0&&<div style={{padding:'60px 0',textAlign:'center',color:'#2a2a2a',fontSize:12,letterSpacing:'0.1em'}}>NO MEMBERS MATCH YOUR SEARCH</div>}
+              <div style={{ fontSize: 30, fontFamily: "'Playfair Display', serif", color: '#e8e4dc', lineHeight: 1.1 }}>
+                Contribution Registry
+              </div>
+              <div style={{ fontSize: 11, color: '#444', marginTop: 6 }}>
+                Civilizational impact scoring · 5-year rolling window · Decay 20%/year after 5 years
+              </div>
+            </div>
+            {/* Auth buttons placeholder */}
+            <div>
+              <button
+                style={{
+                  padding: '8px 18px',
+                  background: '#0a1a16',
+                  border: '1px solid #7EB8A440',
+                  borderRadius: 2,
+                  color: '#7EB8A4',
+                  fontSize: 11,
+                  letterSpacing: '0.08em',
+                  cursor: 'pointer',
+                }}
+              >
+                JOIN / SIGN IN (Mock)
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div style={{position:'fixed',bottom:0,left:0,right:0,background:'#050505',borderTop:'1px solid #111',padding:'10px 40px',display:'flex',flexWrap:'wrap',fontSize:9,color:'#222',letterSpacing:'0.1em',justifyContent:'center'}}>
-        {['ENTRY: 100 CREDITS','ACCESS UNLOCKS: 25 → 50 → 100 CREDITS','DEPRECIATION: 2%/WEEK ON UNSPENT BALANCE','VERIFICATION: EXISTING MEMBER REQUIRED TO JOIN','SCORING: HOURS × TIER × LEVEL × VSC × CONSISTENCY'].map((item,i)=>(
-          <span key={i} style={{padding:'0 14px',borderLeft:i>0?'1px solid #1a1a1a':'none'}}>{item}</span>
-        ))}
+      {/* Filters */}
+      <div style={{ padding: '14px 40px', borderBottom: '1px solid #0e0e0e', position: 'sticky', top: 0, zIndex: 100, background: '#080808' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search name, title, category..."
+            style={{ flex: '1 1 260px', background: '#0e0e0e', border: '1px solid #1a1a1a', borderRadius: 2, padding: '8px 13px', color: '#ccc', fontSize: 12 }}
+          />
+          <select value={filterTier} onChange={e => setFilterTier(e.target.value)} style={{ background: '#0e0e0e', border: '1px solid #1a1a1a', padding: '8px', color: '#ccc' }}>
+            <option value="ALL">All Tiers</option>
+            {['I', 'II', 'III'].map(t => <option key={t} value={t}>Tier {t}</option>)}
+          </select>
+          <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ background: '#0e0e0e', border: '1px solid #1a1a1a', padding: '8px', color: '#ccc' }}>
+            <option value="score">Sort: Score</option>
+            <option value="name">Sort: Name</option>
+          </select>
+        </div>
       </div>
 
-      {selected&&<MemberModal member={selected} myProfile={myProfile} onClose={()=>setSelected(null)}/>}
-      {showInvite&&myProfile&&<InvitePanel memberId={myProfile.id} onClose={()=>setShowInvite(false)}/>}
-      {showProfile&&<ProfileEditor userId={user?.id} existingProfile={myProfile} onClose={()=>setShowProfile(false)} onSaved={handleProfileSaved}/>}
+      {/* Table */}
+      <div style={{ padding: '10px 40px' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          {/* Header row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr 140px 100px 100px', gap: 12, fontSize: 10, color: '#444', padding: '10px 0', borderBottom: '1px solid #141414' }}>
+            <span>NAME</span>
+            <span>CATEGORY · TITLE</span>
+            <span>TIER</span>
+            <span style={{ textAlign: 'right' }}>CS SCORE</span>
+            <span style={{ textAlign: 'right' }}>VERIFIED EVENTS</span>
+          </div>
+
+          {filtered.map(m => {
+            const tierInfo = getTier(m.contribution_score);
+            return (
+              <div
+                key={m.id}
+                onClick={() => setSelected(m)}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '220px 1fr 140px 100px 100px',
+                  gap: 12,
+                  padding: '13px 0',
+                  borderBottom: '1px solid #0c0c0c',
+                  cursor: 'pointer',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 14, color: '#bbb' }}>{m.name}</div>
+                  <div style={{ fontSize: 10, color: '#555' }}>{m.title}</div>
+                </div>
+                <div style={{ fontSize: 12, color: '#777' }}>{m.category}</div>
+                <div><TierBadge tierLabel={tierInfo.label} /></div>
+                <div style={{ textAlign: 'right', fontSize: 14, color: '#aaa' }}>{m.contribution_score?.toFixed(1)}</div>
+                <div style={{ textAlign: 'right', fontSize: 13, color: '#555' }}>{m.verified_events}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Simple CS Calculator Demo */}
+      <div style={{ padding: '40px', maxWidth: 1000, margin: '0 auto', background: '#0a0a0a', borderRadius: 4 }}>
+        <h3 style={{ color: '#ccc', marginBottom: 16 }}>Mock Contribution Score Calculator</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
+          {['T', 'S', 'R', 'I', 'output', 'quality', 'impact'].map(field => (
+            <div key={field}>
+              <label style={{ display: 'block', fontSize: 11, color: '#777', marginBottom: 4 }}>{field.toUpperCase()}</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                max={field === 'T' || field === 'S' || field === 'R' || field === 'I' ? 4 : 1}
+                value={calcInputs[field]}
+                onChange={e => setCalcInputs({ ...calcInputs, [field]: Number(e.target.value) })}
+                style={{ width: '100%', padding: 8, background: '#111', border: '1px solid #222', color: '#ddd', borderRadius: 2 }}
+              />
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 24, padding: 16, background: '#111', borderRadius: 4 }}>
+          <div style={{ fontSize: 18, color: '#ccc' }}>Calculated CS: <strong>{calculatedCS}</strong></div>
+          <div style={{ marginTop: 8 }}>Tier: <TierBadge tierLabel={calcTier.label} /></div>
+          <div style={{ marginTop: 8, fontSize: 13, color: '#aaa' }}>Perks: {calcTier.perks}</div>
+        </div>
+      </div>
+
+      {/* Footer info from spec */}
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#050505', borderTop: '1px solid #111', padding: '10px 40px', fontSize: 9, color: '#444', textAlign: 'center' }}>
+        5-year rolling window · 20% annual decay after 5 years · No political activity scored · Hard schema limits enforced
+      </div>
+
+      {/* Modals / future components */}
+      {selected && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: '#111', padding: 32, borderRadius: 8, maxWidth: 600 }}>Selected: {selected.name} – CS {selected.contribution_score}<br /><button onClick={() => setSelected(null)}>Close</button></div>
+      </div>}
     </div>
-  )
+  );
 }
