@@ -227,7 +227,7 @@ export default function Ledger() {
       </div>
 
       {/* Modals / future components */}
- {selected && (
+{selected && (
   <div
     style={{
       position: 'fixed',
@@ -239,10 +239,10 @@ export default function Ledger() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 2000,  // High z-index to ensure it's on top of everything
-      backdropFilter: 'blur(6px)',  // Nice blur effect
+      zIndex: 2000,
+      backdropFilter: 'blur(6px)',
     }}
-    onClick={() => setSelected(null)}  // Close on backdrop click
+    onClick={() => setSelected(null)}
   >
     <div
       style={{
@@ -257,7 +257,7 @@ export default function Ledger() {
         boxShadow: '0 20px 50px rgba(0,0,0,0.8)',
         position: 'relative',
       }}
-      onClick={(e) => e.stopPropagation()}  // Prevent closing when clicking inside
+      onClick={(e) => e.stopPropagation()}
     >
       <h2 style={{ color: '#e8e4dc', marginBottom: 20, fontSize: 24 }}>
         {selected.name}
@@ -269,7 +269,6 @@ export default function Ledger() {
         <p><strong>Tier:</strong> {selected.tier || 'N/A'}</p>
         <p><strong>CS Score:</strong> {selected.contribution_score?.toFixed(1) || '0.0'}</p>
         <p><strong>Verified Events:</strong> {selected.verified_events || 0}</p>
-        {/* Add more fields/perks later */}
       </div>
 
       <button
@@ -291,3 +290,8 @@ export default function Ledger() {
     </div>
   </div>
 )}
+
+</div>
+
+);
+}
