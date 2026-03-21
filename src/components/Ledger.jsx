@@ -233,3 +233,67 @@ export default function Ledger() {
     </div>
   );
 }
+{selected && (
+  <div
+    key={`modal-${selected.id}`}  // ← key by ID prevents React from re-mounting unnecessarily
+    style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.85)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 2000,
+      backdropFilter: 'blur(6px)',
+    }}
+    onClick={() => setSelected(null)}
+  >
+    <div
+      style={{
+        backgroundColor: '#111',
+        borderRadius: '12px',
+        width: '90%',
+        maxWidth: '600px',
+        maxHeight: '85vh',
+        overflowY: 'auto',
+        padding: '32px',
+        border: '1px solid #333',
+        boxShadow: '0 20px 50px rgba(0,0,0,0.8)',
+        position: 'relative',
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h2 style={{ color: '#e8e4dc', marginBottom: 20, fontSize: 24 }}>
+        {selected.name}
+      </h2>
+
+      <div style={{ color: '#ccc', lineHeight: 1.6, fontSize: 15 }}>
+        <p><strong>Category:</strong> {selected.category || 'N/A'}</p>
+        <p><strong>Title:</strong> {selected.title || 'N/A'}</p>
+        <p><strong>Tier:</strong> {selected.tier || 'N/A'}</p>
+        <p><strong>CS Score:</strong> {selected.contribution_score?.toFixed(1) || '0.0'}</p>
+        <p><strong>Verified Events:</strong> {selected.verified_events || 0}</p>
+      </div>
+
+      <button
+        onClick={() => setSelected(null)}
+        style={{
+          marginTop: 24,
+          padding: '12px 28px',
+          backgroundColor: '#0a1a16',
+          border: '1px solid #7EB8A4',
+          borderRadius: '6px',
+          color: '#7EB8A4',
+          fontSize: 14,
+          cursor: 'pointer',
+          fontWeight: 'bold',
+        }}
+      >
+        Close
+      </button>
+    </div>
+  </div>
+)}
