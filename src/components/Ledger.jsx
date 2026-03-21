@@ -222,11 +222,14 @@ export default function Ledger() {
       </div>
 
       {/* Footer info from spec */}
-     {/* Footer info from spec */}
-<div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#050505', borderTop: '1px solid #111', padding: '10px 40px', fontSize: 9, color: '#444', textAlign: 'center' }}>
-  5-year rolling window · 20% annual decay after 5 years · No political activity scored · Hard schema limits enforced
-</div>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#050505', borderTop: '1px solid #111', padding: '10px 40px', fontSize: 9, color: '#444', textAlign: 'center' }}>
+        5-year rolling window · 20% annual decay after 5 years · No political activity scored · Hard schema limits enforced
+      </div>
 
-{/* Modals / future components */}
-
-      
+      {/* Modals / future components */}
+      {selected && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: '#111', padding: 32, borderRadius: 8, maxWidth: 600 }}>Selected: {selected.name} – CS {selected.contribution_score}<br /><button onClick={() => setSelected(null)}>Close</button></div>
+      </div>}
+    </div>
+  );
+}
