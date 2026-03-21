@@ -222,11 +222,12 @@ export default function Ledger() {
       </div>
 
       {/* Footer info from spec */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#050505', borderTop: '1px solid #111', padding: '10px 40px', fontSize: 9, color: '#444', textAlign: 'center' }}>
-        5-year rolling window · 20% annual decay after 5 years · No political activity scored · Hard schema limits enforced
-      </div>
+     {/* Footer info from spec */}
+<div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#050505', borderTop: '1px solid #111', padding: '10px 40px', fontSize: 9, color: '#444', textAlign: 'center' }}>
+  5-year rolling window · 20% annual decay after 5 years · No political activity scored · Hard schema limits enforced
+</div>
 
-      {/* Modals / future components */}
+{/* Modals / future components */}
 {selected && (
   <div
     style={{
@@ -291,7 +292,4 @@ export default function Ledger() {
   </div>
 )}
 
-</div>
-
-);
-}
+</div>  {/* This closes the main return div */}
